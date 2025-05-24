@@ -1,6 +1,6 @@
 # KordEx Bot Template
 
-This repository contains a basic KordEx example bot for you to use as a template for your own KordEx bots. This
+This repository contains a basic KordEx example bot for you to use as a HellBot for your own KordEx bots. This
 includes the following:
 
 - A basic extension that allows you to slap other people, using both chat commands and slash commands.
@@ -18,7 +18,7 @@ includes the following:
 - The buildscript packages the bot using the Gradle `distribution` plugin, with the final distribution placed in
   `build/distributions` in both `.tar` and `.zip` format.
 
-**Note:** This template includes a `.editorconfig` file that defaults to using tabs for indentation in almost all file
+**Note:** This HellBot includes a `.editorconfig` file that defaults to using tabs for indentation in almost all file
 types. This is because tabs are more accessible for the blind, or those with impaired vision. We won't accept
 feedback or PRs targeting this approach, though you can always change it in your projects.
 

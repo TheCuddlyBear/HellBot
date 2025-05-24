@@ -10,11 +10,15 @@ logback-groovy = "1.14.5"
 logging = "7.0.3"
 kordex-gradle = "1.7.0"
 kordex = "2.3.1-SNAPSHOT"
+lavakord = "9.1.0"
 
 [libraries]
 detekt = { module = "io.gitlab.arturbosch.detekt:detekt-formatting", version.ref = "detekt" }
 groovy = { module = "org.codehaus.groovy:groovy", version.ref = "groovy" }
 jansi = { module = "org.fusesource.jansi:jansi", version.ref = "jansi" }
+lavakord = { module = "dev.schlaubi.lavakord:kord", version.ref="lavakord"}
+lavasrc = { module = "dev.schlaubi.lavakord:lavasrc", version.ref="lavakord"}
+sponsorblock = { module = "dev.schlaubi.lavakord:sponsorblock", version.ref="lavakord"}
 kotlin-stdlib = { module = "org.jetbrains.kotlin:kotlin-stdlib-jdk8" }
 kx-ser = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "kx-ser" }
 logback = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }

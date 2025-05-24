@@ -13,14 +13,24 @@ plugins {
 	alias(libs.plugins.kordex.plugin)
 }
 
-group = "template"
+group = "HellBot"
 version = "1.0-SNAPSHOT"
+
+repositories {
+	mavenCentral()
+	maven("https://maven.arbjerg.dev/snapshots")
+}
 
 dependencies {
 	detektPlugins(libs.detekt)
 
 	implementation(libs.kotlin.stdlib)
 	implementation(libs.kx.ser)
+
+	// Lavalink.kt
+	implementation(libs.lavakord)
+	implementation(libs.lavasrc)
+	implementation(libs.sponsorblock)
 
 	// Logging dependencies
 	implementation(libs.groovy)
@@ -53,12 +63,12 @@ kordEx {
 		// See https://docs.kordex.dev/data-collection.html
 		dataCollection(DataCollection.Standard)
 
-		mainClass = "template.AppKt"
+		mainClass = "HellBot.AppKt"
 	}
 
 	i18n {
-		classPackage = "template.i18n"
-		translationBundle = "template.strings"
+		classPackage = "HellBot.i18n"
+		translationBundle = "HellBot.strings"
 	}
 }
 
