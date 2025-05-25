@@ -13,6 +13,7 @@ import dev.kord.core.entity.interaction.followup.EphemeralFollowupMessage
 import dev.kord.core.entity.interaction.followup.FollowupMessage
 import dev.kord.rest.builder.message.embed
 import dev.kordex.core.commands.Arguments
+import dev.kordex.core.commands.converters.impl.attachment
 import dev.kordex.core.commands.converters.impl.string
 import dev.kordex.core.commands.converters.impl.user
 import dev.kordex.core.components.components
@@ -73,6 +74,10 @@ class MusicExtension() : Extension() {
 								value = track.info.author.toString()
 							}
 
+							footer {
+								text = "Playing on node: ${lavalink.getLink(guildId).node.name}"
+							}
+
 						}
 
 						components {
@@ -123,7 +128,7 @@ class MusicExtension() : Extension() {
 	override suspend fun setup() {
 
 		lavalink.addNode("ws://lavalink.pericsq.ro:4499", "plamea", name="Node 1")
-		lavalink.addNode("ws://dnode2.astrast.host:9869", "https://discord.gg/8M2bAHZaQH", name="Node 2")
+		lavalink.addNode("ws://lavahatry4.techbyte.host:3000", "NAIGLAVA-dash.techbyte.host", name="Node 2")
 		bot.logger.info { "Lavalink initialized" }
 
 		ephemeralSlashCommand(::PlayArguments) {
@@ -210,12 +215,101 @@ class MusicExtension() : Extension() {
 				}
 			}
 		}
+
+		ephemeralSlashCommand(::PlayFileArguments) {
+			name = Translations.Music.Commands.Playfile.name
+			description = Translations.Music.Commands.Playfile.description
+
+			action {
+
+				val link = lavalink.getLink(guild!!.id.value)
+				val player = link.player
+
+				player.on<TrackEndEvent> {
+					if (Map.containsKey(guild!!.id.value)) {
+						val queue = Map[guild!!.id.value]!!
+						if (queue.isNotEmpty()) {
+							val track = queue.removeFirst()
+							player.playTrack(track)
+						} else {
+							Map.remove(guild!!.id.value)
+							MessageMap.remove(guild!!.id.value)
+						}
+					}
+				}
+
+				val voiceState = member!!.getVoiceState()
+				val channelId = voiceState.channelId
+				if(channelId != null){
+					link.connectAudio(channelId.value)
+
+					val query = arguments.songfile.url
+
+					when (val item = link.loadItem(query)) {
+						is LoadResult.TrackLoaded -> {
+
+							val mes = respond {
+								content = Translations.Music.Commands.Play.response
+									.withContext(this@action)
+									.translateNamed(
+										"title" to item.data.info.title,
+										"author" to item.data.info.author
+									)
+							}
+
+							playOrEnqueueSong(guild!!.id.value, item.data, mes.message)
+						}
+						is LoadResult.PlaylistLoaded ->  {
+							val mes = respond {
+								content = Translations.Music.Commands.Play.response
+									.withContext(this@action)
+									.translateNamed(
+										"title" to item.data.tracks.first().info.title,
+										"author" to item.data.tracks.first().info.author
+									)
+							}
+
+							playOrEnqueueSong(guild!!.id.value, item.data.tracks.first(), mes.message)
+						}
+						is LoadResult.SearchResult -> {
+							val mes = respond {
+								content = Translations.Music.Commands.Play.response
+									.withContext(this@action)
+									.translateNamed(
+										"title" to item.data.tracks.first().info.title,
+										"author" to item.data.tracks.first().info.author
+									)
+							}
+							playOrEnqueueSong(guild!!.id.value, item.data.tracks.first(), mes.message)
+						}
+						is LoadResult.NoMatches -> respond { content = "No matches found!"}
+						is LoadResult.LoadFailed -> respond { content = "Failed to load track: ${item.data.message}" }
+					}
+
+
+				}else{
+					respond {
+						content = Translations.Music.Commands.Play.noVoiceChannel
+							.withContext(this@action)
+							.translate()
+					}
+				}
+			}
+
+		}
 	}
 
 	inner class PlayArguments : Arguments() {
 		val query by string {
 			name = Translations.Music.Arguments.Query.name
 			description = Translations.Music.Arguments.Query.description
+		}
+	}
+
+	inner class PlayFileArguments : Arguments() {
+		val songfile by attachment {
+			name = Translations.Music.Arguments.Songfile.name
+			description = Translations.Music.Arguments.Songfile.description
 		}
 	}
 
