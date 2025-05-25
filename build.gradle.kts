@@ -19,6 +19,9 @@ version = "1.0-SNAPSHOT"
 repositories {
 	mavenCentral()
 	maven("https://maven.arbjerg.dev/snapshots")
+	maven("https://oss.sonatype.org/content/repositories/snapshots")
+	maven("https://maven.topi.wtf/snapshots")
+	maven("https://maven.topi.wtf/releases")
 }
 
 dependencies {

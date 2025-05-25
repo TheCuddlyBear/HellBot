@@ -3,6 +3,7 @@
  */
 package HellBot
 
+import HellBot.extensions.DevExtension
 import HellBot.extensions.MusicExtension
 import dev.kord.common.entity.Snowflake
 import dev.kordex.core.ExtensibleBot
@@ -41,6 +42,7 @@ suspend fun main() {
 
 		extensions {
 			add(::MusicExtension)
+			add(::DevExtension)
 		}
 
 		if (devMode) {
