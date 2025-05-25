@@ -7,6 +7,7 @@ import dev.arbjerg.lavalink.protocol.v4.Track
 import dev.kord.common.entity.ButtonStyle
 import dev.kord.common.entity.Snowflake
 import dev.kord.core.behavior.channel.createMessage
+import dev.kord.core.behavior.edit
 import dev.kord.core.entity.Message
 import dev.kord.core.entity.interaction.followup.EphemeralFollowupMessage
 import dev.kord.core.entity.interaction.followup.FollowupMessage
@@ -88,6 +89,25 @@ class MusicExtension() : Extension() {
 									}
 								}
 							}
+
+							publicButton {
+								label = Translations.Music.Buttons.Next.name
+								style= ButtonStyle.Primary
+
+								action {
+									val player = lavalink.getLink(guildId).player
+									player.stopTrack()
+								}
+							}
+
+							publicButton {
+								label = Translations.Music.Buttons.Stop.name
+								style= ButtonStyle.Danger
+
+								action {
+									lavalink.getLink(guildId).destroy()
+								}
+							}
 						}
 					}
 					MessageMap[guildId] = newMes
@@ -115,7 +135,7 @@ class MusicExtension() : Extension() {
 				val player = link.player
 
 				player.on<TrackEndEvent> {
-					if (Map.containsKey(guild!!.id.value) && reason.mayStartNext) {
+					if (Map.containsKey(guild!!.id.value)) {
 						val queue = Map[guild!!.id.value]!!
 						if (queue.isNotEmpty()) {
 							val track = queue.removeFirst()
