@@ -1,6 +1,6 @@
 [versions]
 detekt = "1.23.6"
-kotlin = "2.1.0"
+kotlin = "2.1.21"
 
 groovy = "3.0.23"
 jansi = "2.4.1"
