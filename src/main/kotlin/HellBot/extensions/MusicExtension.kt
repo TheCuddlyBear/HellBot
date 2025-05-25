@@ -4,13 +4,24 @@ import HellBot.extensions.MusicExtension.PlayArguments
 import HellBot.i18n.Translations
 import dev.arbjerg.lavalink.protocol.v4.LoadResult
 import dev.arbjerg.lavalink.protocol.v4.Track
+import dev.kord.common.entity.ButtonStyle
+import dev.kord.common.entity.Snowflake
+import dev.kord.core.behavior.channel.createMessage
+import dev.kord.core.entity.Message
+import dev.kord.core.entity.interaction.followup.EphemeralFollowupMessage
+import dev.kord.core.entity.interaction.followup.FollowupMessage
+import dev.kord.rest.builder.message.embed
 import dev.kordex.core.commands.Arguments
 import dev.kordex.core.commands.converters.impl.string
 import dev.kordex.core.commands.converters.impl.user
+import dev.kordex.core.components.components
+import dev.kordex.core.components.publicButton
 import dev.kordex.core.extensions.Extension
 import dev.kordex.core.extensions.publicSlashCommand
+import dev.kordex.core.extensions.ephemeralSlashCommand
 import dev.kordex.core.i18n.withContext
 import dev.schlaubi.lavakord.audio.TrackEndEvent
+import dev.schlaubi.lavakord.audio.TrackStartEvent
 import dev.schlaubi.lavakord.audio.on
 import dev.schlaubi.lavakord.kord.lavakord
 import dev.schlaubi.lavakord.plugins.lavasrc.LavaSrc
@@ -29,12 +40,62 @@ class MusicExtension() : Extension() {
 	}
 
 	val Map = LinkedHashMap<ULong, ArrayDeque<Track>>()
+	val MessageMap = LinkedHashMap<ULong, Message>()
 
-	suspend fun playOrEnqueueSong(guildId: ULong, track: Track) {
+	suspend fun playOrEnqueueSong(guildId: ULong, track: Track, message: Message) {
 		val queue = Map.get(guildId)
 		if(queue == null) {
 			Map[guildId] = ArrayDeque<Track>().apply { add(track) }
-			lavalink.getLink(guildId).player.playTrack(Map[guildId]!!.removeFirst())
+			val channel = message.getChannel()
+			val newMes = channel.createMessage {
+				content = "Playing song..."
+			}
+			MessageMap[guildId] = newMes
+
+			val player = lavalink.getLink(guildId).player
+			player.on<TrackStartEvent> {
+				val track = player.playingTrack
+				val map = MessageMap[guildId]
+				if (map != null) {
+					val channel = map.getChannel()
+					map.delete()
+					val newMes = channel.createMessage {
+						embed {
+							author { "Music Controller" }
+							thumbnail { url = track?.info?.artworkUrl ?: "https://cdn.discordapp.com/embed/avatars/0.png" }
+							field {
+								name = "Now playing"
+								value = track?.info?.title.toString()
+							}
+
+							field{
+								name = "Author"
+								value = track?.info?.author.toString()
+							}
+
+						}
+
+						components {
+							publicButton {
+								label = Translations.Music.Buttons.Pause.name
+								style= ButtonStyle.Primary
+
+								action {
+									val player = lavalink.getLink(guildId).player
+									if(player.paused) {
+										player.unPause()
+									} else{
+										player.pause()
+									}
+								}
+							}
+						}
+					}
+					MessageMap[guildId] = newMes
+				}
+			}
+
+			player.playTrack(Map[guildId]!!.removeFirst())
 		}else {
 			queue.add(track)
 		}
@@ -46,7 +107,7 @@ class MusicExtension() : Extension() {
 		lavalink.addNode("ws://dnode2.astrast.host:9869", "https://discord.gg/8M2bAHZaQH", name="Node 2")
 		bot.logger.info { "Lavalink initialized" }
 
-		publicSlashCommand(::PlayArguments) {
+		ephemeralSlashCommand(::PlayArguments) {
 			name = Translations.Music.Commands.Play.name
 			description = Translations.Music.Commands.Play.description
 			action {
@@ -55,12 +116,14 @@ class MusicExtension() : Extension() {
 				val player = link.player
 
 				player.on<TrackEndEvent> {
-					if (Map.containsKey(guild!!.id.value)) {
+					if (Map.containsKey(guild!!.id.value) && reason.mayStartNext) {
 						val queue = Map[guild!!.id.value]!!
 						if (queue.isNotEmpty()) {
-							player.playTrack(queue.removeFirst())
+							val track = queue.removeFirst()
+							player.playTrack(track)
 						} else {
 							Map.remove(guild!!.id.value)
+							MessageMap.remove(guild!!.id.value)
 						}
 					}
 				}
@@ -78,21 +141,47 @@ class MusicExtension() : Extension() {
 					}
 
 					when (val item = link.loadItem(search)) {
-						is LoadResult.TrackLoaded -> playOrEnqueueSong(guild!!.id.value, item.data)
-						is LoadResult.PlaylistLoaded ->  playOrEnqueueSong(guild!!.id.value, item.data.tracks.first())
-						is LoadResult.SearchResult -> playOrEnqueueSong(guild!!.id.value, item.data.tracks.first())
+						is LoadResult.TrackLoaded -> {
+
+							val mes = respond {
+								content = Translations.Music.Commands.Play.response
+									.withContext(this@action)
+									.translateNamed(
+										"title" to item.data.info.title,
+										"author" to item.data.info.author
+									)
+							}
+
+							playOrEnqueueSong(guild!!.id.value, item.data, mes.message)
+						}
+						is LoadResult.PlaylistLoaded ->  {
+							val mes = respond {
+								content = Translations.Music.Commands.Play.response
+									.withContext(this@action)
+									.translateNamed(
+										"title" to item.data.tracks.first().info.title,
+										"author" to item.data.tracks.first().info.author
+									)
+							}
+
+							playOrEnqueueSong(guild!!.id.value, item.data.tracks.first(), mes.message)
+						}
+						is LoadResult.SearchResult -> {
+							val mes = respond {
+								content = Translations.Music.Commands.Play.response
+									.withContext(this@action)
+									.translateNamed(
+										"title" to item.data.tracks.first().info.title,
+										"author" to item.data.tracks.first().info.author
+									)
+							}
+							playOrEnqueueSong(guild!!.id.value, item.data.tracks.first(), mes.message)
+						}
 						is LoadResult.NoMatches -> respond { content = "No matches found!"}
 						is LoadResult.LoadFailed -> respond { content = "Failed to load track: ${item.data.message}" }
 					}
 
-					respond {
-						content = Translations.Music.Commands.Play.response
-							.withContext(this@action)
-							.translateNamed(
-								"title" to player.playingTrack?.info?.title,
-								"author" to player.playingTrack?.info?.author
-							)
-					}
+
 				}else{
 					respond {
 						content = Translations.Music.Commands.Play.noVoiceChannel
@@ -110,6 +199,5 @@ class MusicExtension() : Extension() {
 			description = Translations.Music.Arguments.Query.description
 		}
 	}
-
 
 }
