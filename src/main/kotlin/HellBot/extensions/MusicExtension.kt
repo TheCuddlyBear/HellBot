@@ -54,7 +54,6 @@ class MusicExtension() : Extension() {
 
 			val player = lavalink.getLink(guildId).player
 			player.on<TrackStartEvent> {
-				val track = player.playingTrack
 				val map = MessageMap[guildId]
 				if (map != null) {
 					val channel = map.getChannel()
@@ -62,15 +61,15 @@ class MusicExtension() : Extension() {
 					val newMes = channel.createMessage {
 						embed {
 							author { "Music Controller" }
-							thumbnail { url = track?.info?.artworkUrl ?: "https://cdn.discordapp.com/embed/avatars/0.png" }
+							thumbnail { url = track.info.artworkUrl ?: "https://cdn.discordapp.com/embed/avatars/0.png" }
 							field {
 								name = "Now playing"
-								value = track?.info?.title.toString()
+								value = track.info.title.toString()
 							}
 
 							field{
 								name = "Author"
-								value = track?.info?.author.toString()
+								value = track.info.author.toString()
 							}
 
 						}
