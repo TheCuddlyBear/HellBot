@@ -44,10 +44,10 @@ class MusicExtension() : Extension() {
 	val Map = LinkedHashMap<ULong, ArrayDeque<Track>>()
 	val MessageMap = LinkedHashMap<ULong, Message>()
 
-	suspend fun playOrEnqueueSong(guildId: ULong, track: Track, message: Message) {
+	suspend fun playOrEnqueueSong(guildId: ULong, toPlaytrack: Track, message: Message) {
 		val queue = Map.get(guildId)
 		if(queue == null) {
-			Map[guildId] = ArrayDeque<Track>().apply { add(track) }
+			Map[guildId] = ArrayDeque<Track>().apply { add(toPlaytrack) }
 			val channel = message.getChannel()
 			val newMes = channel.createMessage {
 				content = "Playing song..."
@@ -121,14 +121,14 @@ class MusicExtension() : Extension() {
 
 			player.playTrack(Map[guildId]!!.removeFirst())
 		}else {
-			queue.add(track)
+			queue.add(toPlaytrack)
 		}
 	}
 
 	override suspend fun setup() {
 
 		lavalink.addNode("ws://lavalink.pericsq.ro:4499", "plamea", name="Node 1")
-		lavalink.addNode("ws://lavahatry4.techbyte.host:3000", "NAIGLAVA-dash.techbyte.host", name="Node 2")
+		// lavalink.addNode("ws://lavahatry4.techbyte.host:3000", "NAIGLAVA-dash.techbyte.host", name="Node 2")
 		bot.logger.info { "Lavalink initialized" }
 
 		ephemeralSlashCommand(::PlayArguments) {
@@ -145,9 +145,6 @@ class MusicExtension() : Extension() {
 						if (queue.isNotEmpty()) {
 							val track = queue.removeFirst()
 							player.playTrack(track)
-						} else {
-							Map.remove(guild!!.id.value)
-							MessageMap.remove(guild!!.id.value)
 						}
 					}
 				}
@@ -231,9 +228,6 @@ class MusicExtension() : Extension() {
 						if (queue.isNotEmpty()) {
 							val track = queue.removeFirst()
 							player.playTrack(track)
-						} else {
-							Map.remove(guild!!.id.value)
-							MessageMap.remove(guild!!.id.value)
 						}
 					}
 				}
