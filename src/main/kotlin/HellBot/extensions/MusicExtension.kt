@@ -10,13 +10,13 @@ import dev.kord.core.entity.Message
 import dev.kord.rest.builder.message.embed
 import dev.kordex.core.commands.Arguments
 import dev.kordex.core.commands.converters.impl.attachment
-import dev.kordex.core.commands.converters.impl.int
 import dev.kordex.core.commands.converters.impl.string
 import dev.kordex.core.components.components
 import dev.kordex.core.components.publicButton
 import dev.kordex.core.extensions.Extension
 import dev.kordex.core.extensions.ephemeralSlashCommand
 import dev.kordex.core.i18n.withContext
+import dev.kordex.core.utils.delete
 import dev.schlaubi.lavakord.audio.TrackEndEvent
 import dev.schlaubi.lavakord.audio.TrackStartEvent
 import dev.schlaubi.lavakord.audio.on
@@ -50,7 +50,8 @@ class MusicExtension : Extension() {
 		val tracks: ArrayDeque<Track> = ArrayDeque(),
 		var controlMessage: Message? = null,
 		var isPlaying: Boolean = false,
-		var currentTrack: Track? = null
+		var currentTrack: Track? = null,
+		var textChannelId: ULong? = null
 	) {
 		fun addTrack(track: Track) = tracks.addLast(track)
 		fun nextTrack(): Track? = tracks.removeFirstOrNull()
@@ -104,7 +105,7 @@ class MusicExtension : Extension() {
 			queue.currentTrack = track
 
 			bot.logger.info { "Updating control message for track: ${track.info.title}" }
-			updateControlMessage(guildId, track, queue)
+			updateOrCreateControlMessage(guildId, track, queue)
 		}
 	}
 
@@ -129,76 +130,93 @@ class MusicExtension : Extension() {
 	}
 
 	/**
-	 * Create initial control message
+	 * Create or update the control message
 	 */
-	private suspend fun createControlMessage(guildId: ULong, track: Track, channel: dev.kord.core.entity.channel.MessageChannel): Message {
-		val queue = getOrCreateQueue(guildId)
-
-		return channel.createMessage {
-			embed {
-				author { name = "Music Controller" }
-				thumbnail {
-					url = track.info.artworkUrl ?: "https://cdn.discordapp.com/embed/avatars/0.png"
-				}
-				field {
-					name = "Now playing"
-					value = track.info.title ?: "Unknown Title"
-					inline = false
-				}
-				field {
-					name = "Author"
-					value = track.info.author ?: "Unknown Artist"
-					inline = true
-				}
-				field {
-					name = "Queue"
-					value = "${queue.size()} tracks remaining"
-					inline = true
-				}
-				footer {
-					text = "Node: ${lavalink.getLink(guildId).node.name}"
-				}
-			}
-
-			components {
-				publicButton {
-					label = Translations.Music.Buttons.Pause.name
-					style = ButtonStyle.Primary
-					action {
-						togglePause(guildId)
-					}
-				}
-
-				publicButton {
-					label = Translations.Music.Buttons.Next.name
-					style = ButtonStyle.Primary
-					action {
-						skipTrack(guildId)
-					}
-				}
-
-				publicButton {
-					label = Translations.Music.Buttons.Stop.name
-					style = ButtonStyle.Danger
-					action {
-						stopMusic(guildId)
-					}
-				}
-			}
-		}
-	}
-
-	/**
-	 * Update the control message with current track info
-	 */
-	private suspend fun updateControlMessage(guildId: ULong, track: Track, queue: MusicQueue) {
+	private suspend fun updateOrCreateControlMessage(guildId: ULong, track: Track, queue: MusicQueue) {
 		try {
+			val textChannelId = queue.textChannelId
+			if (textChannelId == null) {
+				bot.logger.warn { "No text channel ID stored for guild $guildId" }
+				return
+			}
+
+			val textChannel = bot.kordRef.getChannelOf<dev.kord.core.entity.channel.TextChannel>(dev.kord.common.entity.Snowflake(textChannelId))
+			if (textChannel == null) {
+				bot.logger.warn { "Could not find text channel $textChannelId for guild $guildId" }
+				return
+			}
+
+			// Try to update existing message first
 			val controlMessage = queue.controlMessage
+			var messageUpdated = false
+
 			if (controlMessage != null) {
-				// Update existing message
-				controlMessage.edit {
+				try {
+					controlMessage.edit {
+						embed {
+							author { name = "🎵 Music Controller" }
+							thumbnail {
+								url = track.info.artworkUrl ?: "https://cdn.discordapp.com/embed/avatars/0.png"
+							}
+							field {
+								name = "Now playing"
+								value = track.info.title ?: "Unknown Title"
+								inline = false
+							}
+							field {
+								name = "Author"
+								value = track.info.author ?: "Unknown Artist"
+								inline = true
+							}
+							field {
+								name = "Queue"
+								value = "${queue.size()} tracks remaining"
+								inline = true
+							}
+							footer {
+								text = "Node: ${lavalink.getLink(guildId).node.name}"
+							}
+						}
+
+						components {
+							publicButton {
+								label = Translations.Music.Buttons.Pause.name
+								style = ButtonStyle.Primary
+								action {
+									togglePause(guildId)
+								}
+							}
+
+							publicButton {
+								label = Translations.Music.Buttons.Next.name
+								style = ButtonStyle.Primary
+								action {
+									skipTrack(guildId)
+								}
+							}
+
+							publicButton {
+								label = Translations.Music.Buttons.Stop.name
+								style = ButtonStyle.Danger
+								action {
+									stopMusic(guildId)
+								}
+							}
+						}
+					}
+					messageUpdated = true
+					bot.logger.info { "Updated existing control message for guild $guildId" }
+				} catch (e: Exception) {
+					bot.logger.warn(e) { "Failed to update existing control message, creating new one" }
+					// Message probably doesn't exist anymore, create a new one
+				}
+			}
+
+			// Create new message if update failed or no existing message
+			if (!messageUpdated) {
+				val newMessage = textChannel.createMessage {
 					embed {
-						author { name = "Music Controller" }
+						author { name = "🎵 Music Controller" }
 						thumbnail {
 							url = track.info.artworkUrl ?: "https://cdn.discordapp.com/embed/avatars/0.png"
 						}
@@ -221,25 +239,53 @@ class MusicExtension : Extension() {
 							text = "Node: ${lavalink.getLink(guildId).node.name}"
 						}
 					}
+
+					components {
+						publicButton {
+							label = Translations.Music.Buttons.Pause.name
+							style = ButtonStyle.Primary
+							action {
+								togglePause(guildId)
+							}
+						}
+
+						publicButton {
+							label = Translations.Music.Buttons.Next.name
+							style = ButtonStyle.Primary
+							action {
+								skipTrack(guildId)
+							}
+						}
+
+						publicButton {
+							label = Translations.Music.Buttons.Stop.name
+							style = ButtonStyle.Danger
+							action {
+								stopMusic(guildId)
+							}
+						}
+					}
 				}
-				bot.logger.info { "Updated control message for guild $guildId" }
-			} else {
-				bot.logger.warn { "No control message to update for guild $guildId" }
+				queue.controlMessage = newMessage
+				bot.logger.info { "Created new control message for guild $guildId" }
 			}
 		} catch (e: Exception) {
-			bot.logger.error(e) { "Failed to update control message for guild $guildId" }
+			bot.logger.error(e) { "Failed to create/update control message for guild $guildId" }
 		}
 	}
 
 	/**
 	 * Play or enqueue a track
 	 */
-	private suspend fun playOrEnqueueTrack(guildId: ULong, track: Track, responseMessage: Message) {
+	private suspend fun playOrEnqueueTrack(guildId: ULong, track: Track, textChannelId: ULong) {
 		val mutex = getMutex(guildId)
 		mutex.withLock {
 			val queue = getOrCreateQueue(guildId)
 			val link = lavalink.getLink(guildId)
 			val player = link.player
+
+			// Store the text channel ID for control messages
+			queue.textChannelId = textChannelId
 
 			bot.logger.info { "Processing track: ${track.info.title}, queue playing: ${queue.isPlaying}, queue size: ${queue.size()}" }
 
@@ -250,14 +296,6 @@ class MusicExtension : Extension() {
 				// Setup event listeners before playing
 				setupEventListeners(guildId)
 
-				// Set the control message
-				queue.controlMessage = responseMessage
-
-				// Update the response message to show it's now playing
-				responseMessage.edit {
-					content = "🎵 Now playing: **${track.info.title}** by **${track.info.author}**"
-				}
-
 				// Start playing
 				player.playTrack(track)
 			} else {
@@ -265,9 +303,14 @@ class MusicExtension : Extension() {
 				queue.addTrack(track)
 				bot.logger.info { "Added track to queue: ${track.info.title}, new queue size: ${queue.size()}" }
 
-				// Update response message to show it was queued
-				responseMessage.edit {
-					content = "🎵 Added to queue: **${track.info.title}** by **${track.info.author}**\nPosition in queue: ${queue.size()}"
+				// Send a simple notification to the text channel about the queued track
+				try {
+					val textChannel = bot.kordRef.getChannelOf<dev.kord.core.entity.channel.TextChannel>(dev.kord.common.entity.Snowflake(textChannelId))
+					textChannel?.createMessage {
+						content = "🎵 Added to queue: **${track.info.title}** by **${track.info.author}** (Position: ${queue.size()})"
+					}?.delete(millis=10000)
+				} catch (e: Exception) {
+					bot.logger.error(e) { "Failed to send queue notification" }
 				}
 			}
 		}
@@ -308,7 +351,13 @@ class MusicExtension : Extension() {
 		mutex.withLock {
 			try {
 				val queue = guildQueues[guildId]
-				queue?.controlMessage?.delete()
+
+				// Try to delete control message, but don't fail if it's already gone
+				try {
+					queue?.controlMessage?.delete()
+				} catch (e: Exception) {
+					bot.logger.debug(e) { "Control message already deleted or inaccessible for guild $guildId" }
+				}
 
 				lavalink.getLink(guildId).destroy()
 				guildQueues.remove(guildId)
@@ -328,7 +377,8 @@ class MusicExtension : Extension() {
 	private suspend fun loadAndHandleTrack(
 		guildId: ULong,
 		query: String,
-		respond: suspend (String) -> Message
+		textChannelId: ULong,
+		respond: suspend (String) -> Unit
 	) {
 		val link = lavalink.getLink(guildId)
 
@@ -337,8 +387,8 @@ class MusicExtension : Extension() {
 				is LoadResult.TrackLoaded -> {
 					val track = result.data
 					bot.logger.info { "Loaded single track: ${track.info.title}" }
-					val message = respond("🎵 Loading: **${track.info.title}** by **${track.info.author}**")
-					playOrEnqueueTrack(guildId, track, message)
+					respond("🎵 Loading: **${track.info.title}** by **${track.info.author}**")
+					playOrEnqueueTrack(guildId, track, textChannelId)
 				}
 
 				is LoadResult.PlaylistLoaded -> {
@@ -346,13 +396,13 @@ class MusicExtension : Extension() {
 					if (tracks.isNotEmpty()) {
 						val firstTrack = tracks.first()
 						bot.logger.info { "Loaded playlist with ${tracks.size} tracks" }
-						val message = respond(
+						respond(
 							"🎵 Loading playlist: **${result.data.info.name}** (${tracks.size} tracks)\n" +
 								"Starting with: **${firstTrack.info.title}**"
 						)
 
 						// Add first track
-						playOrEnqueueTrack(guildId, firstTrack, message)
+						playOrEnqueueTrack(guildId, firstTrack, textChannelId)
 
 						// Add remaining tracks to queue
 						val mutex = getMutex(guildId)
@@ -371,8 +421,8 @@ class MusicExtension : Extension() {
 					if (tracks.isNotEmpty()) {
 						val track = tracks.first()
 						bot.logger.info { "Found track from search: ${track.info.title}" }
-						val message = respond("🎵 Found: **${track.info.title}** by **${track.info.author}**")
-						playOrEnqueueTrack(guildId, track, message)
+						respond("🎵 Found: **${track.info.title}** by **${track.info.author}**")
+						playOrEnqueueTrack(guildId, track, textChannelId)
 					}
 				}
 
@@ -395,6 +445,7 @@ class MusicExtension : Extension() {
 	override suspend fun setup() {
 		// Initialize Lavalink nodes
 		lavalink.addNode("ws://lavalink.pericsq.ro:4499", "plamea", name = "Node 1")
+		lavalink.addNode("ws://lavalink.jirayu.net:13592", "youshallnotpass", name = "Node 2")
 		bot.logger.info { "Lavalink initialized" }
 
 		// Play command (URL or search)
@@ -425,8 +476,11 @@ class MusicExtension : Extension() {
 				val query = arguments.query
 				val searchQuery = if (query.startsWith("http")) query else "ytsearch:$query"
 
-				loadAndHandleTrack(guildId, searchQuery) { content ->
-					respond { this.content = content }.message
+				// Get the text channel ID where the command was invoked
+				val textChannelId = channel.id.value
+
+				loadAndHandleTrack(guildId, searchQuery, textChannelId) { content ->
+					respond { this.content = content }
 				}
 			}
 		}
@@ -455,9 +509,12 @@ class MusicExtension : Extension() {
 				// Connect to voice channel
 				lavalink.getLink(guildId).connectAudio(channelId.value)
 
+				// Get the text channel ID where the command was invoked
+				val textChannelId = channel.id.value
+
 				// Load file
-				loadAndHandleTrack(guildId, arguments.songfile.url) { content ->
-					respond { this.content = content }.message
+				loadAndHandleTrack(guildId, arguments.songfile.url, textChannelId) { content ->
+					respond { this.content = content }
 				}
 			}
 		}
@@ -521,7 +578,7 @@ class MusicExtension : Extension() {
 		}
 
 		// Skip command
-		ephemeralSlashCommand() {
+		ephemeralSlashCommand {
 			name = Translations.Music.Commands.Skip.name
 			description = Translations.Music.Commands.Skip.description
 
