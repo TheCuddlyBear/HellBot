@@ -33,8 +33,8 @@ class MusicExtension() : Extension() {
 		}
 	}
 
-	val linkedHashMap = LinkedHashMap<ULong, ArrayDeque<Track>>()
-	val messageMap = LinkedHashMap<ULong, Message>()
+	val linkedHashMap = LinkedHashMap<ULong, ArrayDeque<Track>?>()
+	val messageMap = LinkedHashMap<ULong, Message?>()
 
 	suspend fun playOrEnqueueSong(guildId: ULong, toPlaytrack: Track, message: Message) {
 		val queue = linkedHashMap[guildId]
@@ -103,8 +103,8 @@ class MusicExtension() : Extension() {
 
 								action {
 									lavalink.getLink(guildId).destroy()
-									messageMap[guildId] == null
-									linkedHashMap[guildId] == null
+									messageMap[guildId] = null
+									linkedHashMap[guildId] = null
 								}
 							}
 						}
@@ -145,8 +145,8 @@ class MusicExtension() : Extension() {
 							val map = messageMap[guild!!.id.value]
 							if (map != null) {
 								map.delete()
-								messageMap[guild!!.id.value] == null
-								linkedHashMap[guild!!.id.value] == null
+								messageMap[guild!!.id.value] = null
+								linkedHashMap[guild!!.id.value] = null
 							}
 						}
 					}
@@ -237,8 +237,8 @@ class MusicExtension() : Extension() {
 							val map = messageMap[guild!!.id.value]
 							if (map != null) {
 								map.delete()
-								messageMap[guild!!.id.value] == null
-								linkedHashMap[guild!!.id.value] == null
+								messageMap[guild!!.id.value] = null
+								linkedHashMap[guild!!.id.value] = null
 							}
 						}
 					}
