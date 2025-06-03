@@ -75,7 +75,7 @@ class MusicExtension : Extension() {
 	/**
 	 * Setup event listeners for a guild (only once per guild)
 	 */
-	private suspend fun setupEventListeners(guildId: ULong) {
+	private fun setupEventListeners(guildId: ULong) {
 		// Only setup listeners if not already done for this guild
 		if (setupEventListeners.putIfAbsent(guildId, true) == null) {
 			val player = lavalink.getLink(guildId).player
@@ -124,7 +124,7 @@ class MusicExtension : Extension() {
 				player.playTrack(nextTrack)
 			} else {
 				bot.logger.info { "Queue empty, cleaning up guild $guildId" }
-				cleanup(guildId)
+				cleanupInternal(guildId)  // Use internal cleanup to avoid deadlock
 			}
 		}
 	}
@@ -344,30 +344,37 @@ class MusicExtension : Extension() {
 	}
 
 	/**
-	 * Cleanup guild resources
+	 * Public cleanup function that acquires mutex (for external calls like stop button)
 	 */
 	private suspend fun cleanup(guildId: ULong) {
 		val mutex = getMutex(guildId)
 		mutex.withLock {
+			cleanupInternal(guildId)
+		}
+	}
+
+	/**
+	 * Internal cleanup function that doesn't acquire mutex (for calls from within mutex-locked contexts)
+	 */
+	private suspend fun cleanupInternal(guildId: ULong) {
+		try {
+			val queue = guildQueues[guildId]
+
+			// Try to delete control message, but don't fail if it's already gone
 			try {
-				val queue = guildQueues[guildId]
-
-				// Try to delete control message, but don't fail if it's already gone
-				try {
-					queue?.controlMessage?.delete()
-				} catch (e: Exception) {
-					bot.logger.debug(e) { "Control message already deleted or inaccessible for guild $guildId" }
-				}
-
-				lavalink.getLink(guildId).destroy()
-				guildQueues.remove(guildId)
-				guildMutexes.remove(guildId)
-				setupEventListeners.remove(guildId)
-
-				bot.logger.info { "Cleaned up resources for guild $guildId" }
+				queue?.controlMessage?.delete()
 			} catch (e: Exception) {
-				bot.logger.error(e) { "Error during cleanup for guild $guildId" }
+				bot.logger.debug(e) { "Control message already deleted or inaccessible for guild $guildId" }
 			}
+
+			lavalink.getLink(guildId).destroy()
+			guildQueues.remove(guildId)
+			guildMutexes.remove(guildId)
+			setupEventListeners.remove(guildId)
+
+			bot.logger.info { "Cleaned up resources for guild $guildId" }
+		} catch (e: Exception) {
+			bot.logger.error(e) { "Error during cleanup for guild $guildId" }
 		}
 	}
 
