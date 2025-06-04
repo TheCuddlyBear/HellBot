@@ -7,7 +7,7 @@ plugins {
 	alias(libs.plugins.kotlin.jvm)
 	alias(libs.plugins.kotlin.serialization)
 
-	alias(libs.plugins.detekt)
+	//alias(libs.plugins.detekt)
 
 	alias(libs.plugins.kordex.docker)
 	alias(libs.plugins.kordex.plugin)
@@ -25,7 +25,7 @@ repositories {
 }
 
 dependencies {
-	detektPlugins(libs.detekt)
+	//detektPlugins(libs.detekt)
 
 	implementation(libs.kotlin.stdlib)
 	implementation(libs.kx.ser)
@@ -75,11 +75,11 @@ kordEx {
 	}
 }
 
-detekt {
+/*detekt {
 	buildUponDefaultConfig = true
 
 	config.from(rootProject.files("detekt.yml"))
-}
+}*/
 
 // Automatically generate a Dockerfile. Set `generateOnBuild` to `false` if you'd prefer to manually run the
 // `createDockerfile` task instead of having it run whenever you build.
