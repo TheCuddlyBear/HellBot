@@ -451,7 +451,7 @@ class MusicExtension : Extension() {
 
 	override suspend fun setup() {
 		// Initialize Lavalink nodes
-		lavalink.addNode("ws://lavalink.pericsq.ro:4499", "plamea", name = "Node 1")
+		//lavalink.addNode("ws://lavalink.pericsq.ro:4499", "plamea", name = "Node 1")
 		lavalink.addNode("ws://lavalink.jirayu.net:13592", "youshallnotpass", name = "Node 2")
 		bot.logger.info { "Lavalink initialized" }
 

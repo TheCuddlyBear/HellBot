@@ -5,10 +5,12 @@ package HellBot
 
 import HellBot.extensions.DevExtension
 import HellBot.extensions.MusicExtension
+import HellBot.extensions.ReactionExtension
 import dev.kord.common.entity.Snowflake
 import dev.kordex.core.ExtensibleBot
 import dev.kordex.core.utils.env
 import HellBot.extensions.TestExtension
+import dev.kord.common.entity.PresenceStatus
 import dev.kordex.core.utils.envOrNull
 import dev.schlaubi.lavakord.kord.lavakord
 import java.io.File
@@ -23,6 +25,11 @@ suspend fun main() {
 	val bot = ExtensibleBot(TOKEN) {
 		applicationCommands {
 			defaultGuild(envOrNull("TEST_SERVER"))
+		}
+
+		presence {
+			status= PresenceStatus.DoNotDisturb
+			competing("Iemand zerge?")
 		}
 
 		chatCommands {
@@ -43,6 +50,7 @@ suspend fun main() {
 		extensions {
 			add(::MusicExtension)
 			add(::DevExtension)
+			add(::ReactionExtension)
 		}
 
 		if (devMode) {
