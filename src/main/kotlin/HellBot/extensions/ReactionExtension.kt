@@ -27,7 +27,16 @@ class ReactionExtension : Extension() {
 			action {
 				if(event.message.author?.id!!.value.toLong() == 227428836248256514) {
 					if(chance(0.2)) {
-						val replies = arrayOf("HACKER!!", "Ruhizzz, hacker!", "Rocket league ruiz?? Pot?", "Gast", "Ruiz Juan-Miguel Roger Segond von Banchet")
+						val replies = arrayOf("HACKER!!",
+							"Ruhizzz, hacker!",
+							"Rocket league ruiz?? Pot?",
+							"Gast",
+							"Ruiz Juan-Miguel Roger Segond von Banchet",
+							"Wil je een blauwe?",
+							"Ruiz, ik heb je IP-adres",
+							"Ruiz, ik heb je adres",
+							"Sax?",
+							"Ruiz, jij mag op mijn verjaardag komen")
 						val randomIndex = Random.nextInt(replies.size);
 						event.message.respond {
 							content = replies[randomIndex]
