@@ -1,6 +1,7 @@
 package HellBot.extensions
 
 import HellBot.i18n.Translations
+import com.adamratzman.spotify.spotifyAppApi
 import dev.arbjerg.lavalink.protocol.v4.LoadResult
 import dev.arbjerg.lavalink.protocol.v4.Track
 import dev.kord.common.entity.ButtonStyle
@@ -17,6 +18,8 @@ import dev.kordex.core.extensions.Extension
 import dev.kordex.core.extensions.ephemeralSlashCommand
 import dev.kordex.core.i18n.withContext
 import dev.kordex.core.utils.delete
+import dev.kordex.core.utils.envOrNull
+import dev.kordex.core.utils.suggestStringCollection
 import dev.schlaubi.lavakord.audio.TrackEndEvent
 import dev.schlaubi.lavakord.audio.TrackStartEvent
 import dev.schlaubi.lavakord.audio.on
@@ -452,7 +455,7 @@ class MusicExtension : Extension() {
 	override suspend fun setup() {
 		// Initialize Lavalink nodes
 		//lavalink.addNode("ws://lavalink.pericsq.ro:4499", "plamea", name = "Node 1")
-		lavalink.addNode("ws://lavalink.jirayu.net:13592", "youshallnotpass", name = "Node 2")
+		lavalink.addNode("ws://lava-v4.ajieblogs.eu.org:80", "https://dsc.gg/ajidevserver", name = "Node 2")
 		bot.logger.info { "Lavalink initialized" }
 
 		// Play command (URL or search)
@@ -607,11 +610,23 @@ class MusicExtension : Extension() {
 		}
 	}
 
+
 	// Arguments classes
 	inner class PlayArguments : Arguments() {
 		val query by string {
 			name = Translations.Music.Arguments.Query.name
 			description = Translations.Music.Arguments.Query.description
+
+			autoComplete {
+				val spotify = spotifyAppApi(envOrNull("SPOTIFY_CLIENT_ID")!!, envOrNull("SPOTIFY_CLIENT_SECRET")!!).build()
+
+				val searchQuery = it.interaction.focusedOption.value
+				val results = spotify.search.searchTrack(searchQuery, limit=10).items
+					.map { track -> "${track.name} - ${track.artists.joinToString(", ") { it.name!! }}" }
+					.toMutableList()
+				suggestStringCollection(results)
+			}
+
 		}
 	}
 

@@ -41,6 +41,8 @@ dependencies {
 	implementation(libs.logback)
 	implementation(libs.logback.groovy)
 	implementation(libs.logging)
+
+	implementation(libs.spotify)
 }
 
 // Configure distributions plugin
@@ -64,7 +66,7 @@ kordEx {
 
 	bot {
 		// See https://docs.kordex.dev/data-collection.html
-		dataCollection(DataCollection.Standard)
+		dataCollection(DataCollection.None)
 
 		mainClass = "HellBot.AppKt"
 	}
