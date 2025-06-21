@@ -1,12 +1,15 @@
 package HellBot.extensions
 
 import HellBot.i18n.Translations
-import com.adamratzman.spotify.spotifyAppApi
+import HellBot.spotify
+import com.neovisionaries.i18n.CountryCode
 import dev.arbjerg.lavalink.protocol.v4.LoadResult
 import dev.arbjerg.lavalink.protocol.v4.Track
 import dev.kord.common.entity.ButtonStyle
 import dev.kord.core.behavior.channel.createMessage
 import dev.kord.core.behavior.edit
+import dev.kord.core.behavior.interaction.suggest
+import dev.kord.core.behavior.interaction.suggestString
 import dev.kord.core.entity.Message
 import dev.kord.rest.builder.message.embed
 import dev.kordex.core.commands.Arguments
@@ -19,7 +22,9 @@ import dev.kordex.core.extensions.ephemeralSlashCommand
 import dev.kordex.core.i18n.withContext
 import dev.kordex.core.utils.delete
 import dev.kordex.core.utils.envOrNull
+import dev.kordex.core.utils.focusedOption
 import dev.kordex.core.utils.suggestStringCollection
+import dev.kordex.core.utils.suggestStringMap
 import dev.schlaubi.lavakord.audio.TrackEndEvent
 import dev.schlaubi.lavakord.audio.TrackStartEvent
 import dev.schlaubi.lavakord.audio.on
@@ -29,6 +34,8 @@ import dev.schlaubi.lavakord.plugins.sponsorblock.Sponsorblock
 import dev.schlaubi.lavakord.rest.loadItem
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import se.michaelthelin.spotify.model_objects.specification.Paging
+import se.michaelthelin.spotify.requests.data.search.simplified.SearchTracksRequest
 import java.util.concurrent.ConcurrentHashMap
 
 class MusicExtension : Extension() {
@@ -618,13 +625,23 @@ class MusicExtension : Extension() {
 			description = Translations.Music.Arguments.Query.description
 
 			autoComplete {
-				val spotify = spotifyAppApi(envOrNull("SPOTIFY_CLIENT_ID")!!, envOrNull("SPOTIFY_CLIENT_SECRET")!!).build()
-
-				val searchQuery = it.interaction.focusedOption.value
-				val results = spotify.search.searchTrack(searchQuery, limit=10).items
-					.map { track -> "${track.name} - ${track.artists.joinToString(", ") { it.name!! }}" }
-					.toMutableList()
-				suggestStringCollection(results)
+				val searchQuery: String? = it.focusedOption.value as String?
+				if (!searchQuery.isNullOrBlank()) {
+					val trackRequest: SearchTracksRequest = spotify!!.searchTracks(searchQuery).market(CountryCode.NL).limit(5).build()
+					val paging: Paging<se.michaelthelin.spotify.model_objects.specification.Track> = trackRequest.execute()
+					val tracks = paging.items
+					val suggestions = mutableMapOf<String, String>()
+					for (track in tracks){
+						val name = track.name
+						val artist = track.artists.joinToString(", ") { it.name }
+						val url = track.externalUrls["spotify"] ?: "https://open.spotify.com/track/${track.id}"
+						val suggestion = "$name - $artist"
+						suggestions[suggestion] = url
+					}
+					suggestStringMap(suggestions)
+				}else {
+					suggestString { name = "............." }
+				}
 			}
 
 		}

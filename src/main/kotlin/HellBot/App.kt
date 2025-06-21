@@ -13,11 +13,15 @@ import HellBot.extensions.TestExtension
 import dev.kord.common.entity.PresenceStatus
 import dev.kordex.core.utils.envOrNull
 import dev.schlaubi.lavakord.kord.lavakord
+import se.michaelthelin.spotify.SpotifyApi
+import se.michaelthelin.spotify.requests.authorization.client_credentials.ClientCredentialsRequest
 import java.io.File
 
 val TEST_SERVER_ID = Snowflake(
 	env("TEST_SERVER").toLong()  // Get the test server ID from the env vars or a .env file
 )
+
+var spotify: SpotifyApi? = null
 
 private val TOKEN = env("TOKEN")   // Get the bot' token from the env vars or a .env file
 
@@ -61,6 +65,19 @@ suspend fun main() {
 				}
 			}
 		}
+	}
+
+	// Initialize Spotify API if the client ID and secret are provided
+	if (envOrNull("SPOTIFY_CLIENT_ID") != null && envOrNull("SPOTIFY_CLIENT_SECRET") != null) {
+		spotify = SpotifyApi.Builder()
+			.setClientId(env("SPOTIFY_CLIENT_ID"))
+			.setClientSecret(env("SPOTIFY_CLIENT_SECRET"))
+			.build()
+
+		val credRequest: ClientCredentialsRequest  = spotify!!.clientCredentials().build()
+		val clientCredentials = credRequest.execute()
+		spotify!!.setAccessToken(clientCredentials.accessToken)
+
 	}
 
 	bot.start()

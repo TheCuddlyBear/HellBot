@@ -26,7 +26,7 @@ class ReactionExtension : Extension() {
 		event<MessageCreateEvent> {
 			action {
 				if(event.message.author?.id!!.value.toLong() == 227428836248256514) {
-					if(chance(0.2)) {
+					if(chance(0.35)) {
 						val replies = arrayOf("HACKER!!",
 							"Ruhizzz, hacker!",
 							"Rocket league ruiz?? Pot?",
