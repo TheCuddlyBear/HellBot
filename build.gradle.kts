@@ -43,6 +43,7 @@ dependencies {
 	implementation(libs.logging)
 
 	implementation(libs.spotify)
+	implementation(libs.khttp)
 }
 
 // Configure distributions plugin

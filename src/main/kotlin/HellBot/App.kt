@@ -4,6 +4,7 @@
 package HellBot
 
 import HellBot.extensions.DevExtension
+import HellBot.extensions.FunExtensions
 import HellBot.extensions.MusicExtension
 import HellBot.extensions.ReactionExtension
 import dev.kord.common.entity.Snowflake
@@ -55,6 +56,7 @@ suspend fun main() {
 			add(::MusicExtension)
 			add(::DevExtension)
 			add(::ReactionExtension)
+			add(::FunExtensions)
 		}
 
 		if (devMode) {
